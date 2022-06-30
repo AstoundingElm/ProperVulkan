@@ -6,15 +6,291 @@
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 #include "linmath.hpp"
-#define WINDOW_HEIGHT 500
-#define WINDOW_WIDTH 500
+
 #define MAX_FRAMES_IN_FLIGHT 2
+#ifndef ERROR_MAX_PRINT_LENGTH
+#define ERROR_MAX_PRINT_LENGTH 4096
+#endif
 
-#include "errors.cpp"
+#ifndef ERROR_APPNAME
+#define ERROR_APPNAME "App"
+#endif
 
-#include "utils.cpp"
-//#include "camera.hpp"
-#include "camera.cpp"
+typedef enum ErrSeverity {
+  ERR_LEVEL_DEBUG = 1,
+  ERR_LEVEL_INFO = 2,
+  ERR_LEVEL_WARN = 3,
+  ERR_LEVEL_ERROR = 4,
+  ERR_LEVEL_FATAL = 5,
+  ERR_LEVEL_UNKNOWN = 6,
+} ErrSeverity;
+
+typedef enum ErrVal {
+  ERR_OK = 0,
+  ERR_UNKNOWN = 1,
+  ERR_NOTSUPPORTED = 2,
+  ERR_UNSAFE = 3,
+  ERR_BADARGS = 4,
+  ERR_OUTOFDATE = 5,
+  ERR_ALLOCFAIL = 6,
+  ERR_MEMORY = 7,
+} ErrVal;
+
+const char *vkstrerror(VkResult err);
+const char *levelstrerror(ErrSeverity level);
+
+#define UNUSED __attribute__((unused))
+#define PANIC() exit(EXIT_FAILURE)
+
+#define LOG_ERROR(level, msg)                                                  \
+  printf("%s: %s: %s\n", ERROR_APPNAME, levelstrerror(level), msg)
+
+#define LOG_ERROR_ARGS(level, fmt, ...)                                        \
+  do {                                                                         \
+    char macro_message_formatted[ERROR_MAX_PRINT_LENGTH];                            \
+    snprintf(macro_message_formatted, ERROR_MAX_PRINT_LENGTH, fmt, __VA_ARGS__);     \
+    printf("%s: %s: %s\n", ERROR_APPNAME, levelstrerror(level),                      \
+           macro_message_formatted);                                           \
+  } while (0)
+
+const char *vkstrerror(VkResult err) {
+  const char *errmsg;
+  switch (err) {
+  case VK_SUCCESS: {
+    errmsg = "VK_SUCCESS";
+    break;
+  }
+  case VK_NOT_READY: {
+    errmsg = "VK_NOT_READY";
+    break;
+  }
+  case VK_TIMEOUT: {
+    errmsg = "VK_TIMEOUT";
+    break;
+  }
+  case VK_EVENT_SET: {
+    errmsg = "VK_EVENT_SET";
+    break;
+  }
+  case VK_EVENT_RESET: {
+    errmsg = "VK_EVENT_RESET";
+    break;
+  }
+  case VK_INCOMPLETE: {
+    errmsg = "VK_INCOMPLETE";
+    break;
+  }
+  case VK_ERROR_OUT_OF_HOST_MEMORY: {
+    errmsg = "VK_ERROR_OUT_OF_HOST_MEMORY";
+    break;
+  }
+  case VK_ERROR_OUT_OF_DEVICE_MEMORY: {
+    errmsg = "VK_ERROR_OUT_OF_DEVICE_MEMORY";
+    break;
+  }
+  case VK_ERROR_INITIALIZATION_FAILED: {
+    errmsg = "VK_ERROR_INITIALIZATION_FAILED";
+    break;
+  }
+  case VK_ERROR_DEVICE_LOST: {
+    errmsg = "VK_ERROR_DEVICE_LOST";
+    break;
+  }
+  case VK_ERROR_MEMORY_MAP_FAILED: {
+    errmsg = "VK_ERROR_MEMORY_MAP_FAILED";
+    break;
+  }
+  case VK_ERROR_LAYER_NOT_PRESENT: {
+    errmsg = "VK_ERROR_LAYER_NOT_PRESENT";
+    break;
+  }
+  case VK_ERROR_EXTENSION_NOT_PRESENT: {
+    errmsg = "VK_ERROR_EXTENSION_NOT_PRESENT";
+    break;
+  }
+  case VK_ERROR_FEATURE_NOT_PRESENT: {
+    errmsg = "VK_ERROR_FEATURE_NOT_PRESENT";
+    break;
+  }
+  case VK_ERROR_INCOMPATIBLE_DRIVER: {
+    errmsg = "VK_ERROR_INCOMPATIBLE_DRIVER";
+    break;
+  }
+  case VK_ERROR_TOO_MANY_OBJECTS: {
+    errmsg = "VK_ERROR_TOO_MANY_OBJECTS";
+    break;
+  }
+  case VK_ERROR_FORMAT_NOT_SUPPORTED: {
+    errmsg = "VK_ERROR_FORMAT_NOT_SUPPORTED";
+    break;
+  }
+  case VK_ERROR_FRAGMENTED_POOL: {
+    errmsg = "VK_ERROR_FRAGMENTED_POOL";
+    break;
+  }
+  case VK_ERROR_UNKNOWN: {
+    errmsg = "VK_ERROR_UNKNOWN";
+    break;
+  }
+  case VK_ERROR_OUT_OF_POOL_MEMORY: {
+    errmsg = "VK_ERROR_OUT_OF_POOL_MEMORY";
+    break;
+  }
+  case VK_ERROR_INVALID_EXTERNAL_HANDLE: {
+    errmsg = "VK_ERROR_INVALID_EXTERNAL_HANDLE";
+    break;
+  }
+  case VK_ERROR_FRAGMENTATION: {
+    errmsg = "VK_ERROR_FRAGMENTATION";
+    break;
+  }
+  case VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS: {
+    errmsg = "VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS";
+    break;
+  }
+  case VK_ERROR_SURFACE_LOST_KHR: {
+    errmsg = "VK_ERROR_SURFACE_LOST_KHR";
+    break;
+  }
+  case VK_ERROR_NATIVE_WINDOW_IN_USE_KHR: {
+    errmsg = "VK_ERROR_NATIVE_WINDOW_IN_USE_KHR";
+    break;
+  }
+  case VK_SUBOPTIMAL_KHR: {
+    errmsg = "VK_SUBOPTIMAL_KHR";
+    break;
+  }
+  case VK_ERROR_OUT_OF_DATE_KHR: {
+    errmsg = "VK_ERROR_OUT_OF_DATE_KHR";
+    break;
+  }
+  case VK_ERROR_INCOMPATIBLE_DISPLAY_KHR: {
+    errmsg = "VK_ERROR_INCOMPATIBLE_DISPLAY_KHR";
+    break;
+  }
+  case VK_ERROR_VALIDATION_FAILED_EXT: {
+    errmsg = "VK_ERROR_VALIDATION_FAILED_EXT";
+    break;
+  }
+  case VK_ERROR_INVALID_SHADER_NV: {
+    errmsg = "VK_ERROR_INVALID_SHADER_NV";
+    break;
+  }
+  case VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT: {
+    errmsg = "VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT";
+    break;
+  }
+  case VK_ERROR_NOT_PERMITTED_EXT: {
+    errmsg = "VK_ERROR_NOT_PERMITTED_EXT";
+    break;
+  }
+  case VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT: {
+    errmsg = "VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT";
+    break;
+  }
+  case VK_THREAD_IDLE_KHR: {
+    errmsg = "VK_THREAD_IDLE_KHR";
+    break;
+  }
+  case VK_THREAD_DONE_KHR: {
+    errmsg = "VK_THREAD_DONE_KHR";
+    break;
+  }
+  case VK_OPERATION_DEFERRED_KHR: {
+    errmsg = "VK_OPERATION_DEFERRED_KHR";
+    break;
+  }
+  case VK_OPERATION_NOT_DEFERRED_KHR: {
+    errmsg = "VK_OPERATION_NOT_DEFERRED_KHR";
+    break;
+  }
+  case VK_PIPELINE_COMPILE_REQUIRED_EXT: {
+    errmsg = "VK_PIPELINE_COMPILE_REQUIRED_EXT";
+    break;
+  }
+  default: {
+    errmsg = "UNKNOWN_ERROR";
+    break;
+  }
+  }
+  return errmsg;
+}
+
+const char *levelstrerror(ErrSeverity level) {
+  switch (level) {
+  case ERR_LEVEL_DEBUG: {
+    return ("debug");
+  }
+  case ERR_LEVEL_INFO: {
+    return ("info");
+  }
+  case ERR_LEVEL_WARN: {
+    return ("warn");
+  }
+  case ERR_LEVEL_ERROR: {
+    return ("error");
+  }
+  case ERR_LEVEL_FATAL: {
+    return ("fatal");
+  }
+  case ERR_LEVEL_UNKNOWN: {
+    return ("unknown");
+  };
+  
+  };
+  return ("something wong");
+}
+
+uint64_t getLength(FILE *f) {
+  /* TODO what if the file is modified as we read it? */
+  int64_t currentpos = ftell(f);
+  fseek(f, 0, SEEK_END);
+  int64_t size = ftell(f);
+  fseek(f, currentpos, SEEK_SET);
+  if (size < 0) {
+    LOG_ERROR(ERR_LEVEL_ERROR, "invalid file size");
+    return (0);
+  }
+  return ((uint64_t)size);
+}
+
+/**
+ * Mallocs
+ */
+void readShaderFile(const char *filename, uint32_t *length, uint32_t **code) {
+  FILE *fp = fopen(filename, "rb");
+  if (!fp) {
+    LOG_ERROR(ERR_LEVEL_FATAL, "could not read file");
+    PANIC();
+  }
+  /* We can coerce to a 32 bit, because no realistic files will be
+   * greater than 2 GB */
+  uint32_t filesize = (uint32_t)getLength(fp);
+  // pad to a multiple of 4
+  uint32_t filesizepadded = (filesize + 3) & ~0x03u;
+
+  char *str = (char *)malloc(filesizepadded);
+  if (!str) {
+    LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "could not read shader file: %s",
+                   strerror(errno));
+    fclose(fp);
+    PANIC();
+  }
+
+  fread(str, filesize, sizeof(char), fp);
+  fclose(fp);
+
+  /*pad data*/
+  for (uint32_t i = filesize; i < filesizepadded; i++) {
+    str[i] = 0;
+  }
+
+  /*cast data t array of uints*/
+  *length = filesizepadded;
+  *code = (uint32_t *)((void *)str);
+  return;
+}
+
 
 typedef struct {
   vec3 position;
@@ -30,6 +306,142 @@ static Vertex vertexData[] = {
     (Vertex){.position = {0.0, 1.0, 0.0}, .color = {0.0, 1.0, 0.0}},
     (Vertex){.position = {1.0, 0.0, 1.0}, .color = {0.0, 0.0, 1.0}},
 };
+
+typedef struct {
+  vec3 front;
+  vec3 right;
+  vec3 up;
+} CameraBasis;
+
+// The camera struct
+typedef struct {
+  // global camera position
+  vec3 pos;
+  // pitch and yaw values in radians
+  float pitch;
+  float yaw;
+  // the camera's basis
+  CameraBasis basis;
+  // Projection Matrix
+  mat4x4 projection;
+} Camera;
+
+// world up is just the unit y vector
+const static vec3 worldup = {0.0f, 1.0f, 0.0f};
+
+static CameraBasis new_CameraBasis(const float pitch, const float yaw) {
+  CameraBasis cb;
+
+  // calculate front vector from yaw and pitch
+  // note that front actually points in the opposite direction as the camera
+  // view
+  cb.front[0] = cosf(yaw) * cosf(pitch);
+  cb.front[1] = sinf(pitch);
+  cb.front[2] = sinf(yaw) * cosf(pitch);
+
+  // calculate others from via gram schmidt process
+  vec3_mul_cross(cb.right, cb.front, worldup);
+  vec3_mul_cross(cb.up, cb.right, cb.front);
+
+  return cb;
+}
+
+static void calculate_projection_matrix(mat4x4 projection_matrix, const VkExtent2D dimensions) {
+  float fov = RADIANS(90.0f);
+  float aspect_ratio = (float)dimensions.width / (float)dimensions.height;
+
+  // set near and far to 0.01 and 100.0 respectively
+  mat4x4_perspective(projection_matrix, fov, aspect_ratio, 0.01f, 100.0f);
+}
+Camera new_Camera(const vec3 loc, const VkExtent2D dimensions) {
+  Camera cam;
+  vec3_dup(cam.pos, loc);
+
+  cam.pitch = 0.0f;
+  cam.yaw = RADIANS(-90.0f);
+
+  cam.basis = new_CameraBasis(cam.pitch, cam.yaw);
+
+  // set near and far to 0.01 and 100.0 respectively
+  calculate_projection_matrix(cam.projection, dimensions);
+
+  return cam;
+}
+
+void resizeCamera(Camera *camera, const VkExtent2D dimensions) {
+  calculate_projection_matrix(camera->projection, dimensions);
+}
+
+void updateCamera(Camera *camera, GLFWwindow *pWindow) {
+  float movscale = 0.01f;
+
+  if (glfwGetKey(pWindow, GLFW_KEY_W) == GLFW_PRESS) {
+      vec3 delta_pos;
+      vec3_scale(delta_pos, camera->basis.front, -movscale);
+      vec3_add(camera->pos, camera->pos, delta_pos);
+
+  }
+  if (glfwGetKey(pWindow, GLFW_KEY_S) == GLFW_PRESS) {
+      vec3 delta_pos;
+      vec3_scale(delta_pos, camera->basis.front, movscale);
+      vec3_add(camera->pos, camera->pos, delta_pos);
+  }
+  if (glfwGetKey(pWindow, GLFW_KEY_A) == GLFW_PRESS) {
+      vec3 delta_pos;
+      vec3_scale(delta_pos, camera->basis.right, movscale);
+      vec3_add(camera->pos, camera->pos, delta_pos);
+  }
+  if (glfwGetKey(pWindow, GLFW_KEY_D) == GLFW_PRESS) {
+      vec3 delta_pos;
+      vec3_scale(delta_pos, camera->basis.right, -movscale);
+      vec3_add(camera->pos, camera->pos, delta_pos);
+  }
+  if (glfwGetKey(pWindow, GLFW_KEY_Q) == GLFW_PRESS) {
+      vec3 delta_pos;
+      vec3_scale(delta_pos, camera->basis.up, movscale);
+      vec3_add(camera->pos, camera->pos, delta_pos);
+  }
+  if (glfwGetKey(pWindow, GLFW_KEY_E) == GLFW_PRESS) {
+      vec3 delta_pos;
+      vec3_scale(delta_pos, camera->basis.up, -movscale);
+      vec3_add(camera->pos, camera->pos, delta_pos);
+  }
+
+  float rotscale = 0.02f;
+
+  if (glfwGetKey(pWindow, GLFW_KEY_UP) == GLFW_PRESS) {
+    camera->pitch += rotscale;
+  }
+  if (glfwGetKey(pWindow, GLFW_KEY_DOWN) == GLFW_PRESS) {
+    camera-> pitch -= rotscale;
+  }
+  if (glfwGetKey(pWindow, GLFW_KEY_LEFT) == GLFW_PRESS) {
+    camera->yaw -= rotscale;
+  }
+  if (glfwGetKey(pWindow, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+      camera->yaw += rotscale;
+  }
+
+  // clamp camera->pitch between 89 degrees
+  camera->pitch = fminf(camera->pitch, RADIANS(89.0f));
+  camera->pitch = fmaxf(camera->pitch, RADIANS(-89.0f));
+
+  // rebuild basis vectors
+  camera->basis = new_CameraBasis(camera->pitch, camera->yaw);
+}
+
+void getMvpCamera(mat4x4 mvp, const Camera *camera) {
+    // the place we're looking at is in the opposite direction as front
+    vec3 look_pos;
+    vec3_sub(look_pos, camera->pos, camera->basis.front);
+
+    // calculate the view matrix by looking from our eye to center
+    mat4x4 view;
+    mat4x4_look_at(view, camera->pos, look_pos, worldup);
+
+    // now set mvp to proj * view
+    mat4x4_mul(mvp, camera->projection, view);
+}
 
 struct VulkContext{
 
@@ -57,13 +469,12 @@ VkDevice device;
   VkSemaphore pRenderFinishedSemaphores[MAX_FRAMES_IN_FLIGHT];
   VkFence pInFlightFences[MAX_FRAMES_IN_FLIGHT];
 };
+
 VulkContext context;
 
-static VKAPI_ATTR VkBool32 VKAPI_CALL
-debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-              UNUSED VkDebugUtilsMessageTypeFlagsEXT messageType,
-              const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
-              UNUSED void *pUserData) {
+static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, 
+UNUSED VkDebugUtilsMessageTypeFlagsEXT messageType,const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
+UNUSED void *pUserData) {
 
   /* set severity */
   ErrSeverity errSeverity = ERR_LEVEL_UNKNOWN;
@@ -90,18 +501,15 @@ debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
   return (VK_FALSE);
 };
 
-ErrVal getPresentQueueFamilyIndex(uint32_t *pQueueFamilyIndex,
-                                  const VkPhysicalDevice physicalDevice,
-                                  const VkSurfaceKHR surface) {
+ErrVal getPresentQueueFamilyIndex(uint32_t *pQueueFamilyIndex, const VkPhysicalDevice physicalDevice,
+ const VkSurfaceKHR surface) {
   uint32_t queueFamilyCount = 0;
-  vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount,
-                                           NULL);
+  vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount,NULL);
   if (queueFamilyCount == 0) {
     LOG_ERROR(ERR_LEVEL_WARN, "no queues found");
     return (ERR_NOTSUPPORTED);
   }
-  VkQueueFamilyProperties *arr = (VkQueueFamilyProperties *)malloc(
-      queueFamilyCount * sizeof(VkQueueFamilyProperties));
+VkQueueFamilyProperties *arr = (VkQueueFamilyProperties *)malloc(queueFamilyCount * sizeof(VkQueueFamilyProperties));
   if (!arr) {
     LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "Failed to get present queue index: %s",
                    strerror(errno));
@@ -111,8 +519,7 @@ ErrVal getPresentQueueFamilyIndex(uint32_t *pQueueFamilyIndex,
                                            arr);
   for (uint32_t i = 0; i < queueFamilyCount; i++) {
     VkBool32 surfaceSupport;
-    VkResult res = vkGetPhysicalDeviceSurfaceSupportKHR(
-        physicalDevice, i, surface, &surfaceSupport);
+    VkResult res = vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &surfaceSupport);
     if (res == VK_SUCCESS && surfaceSupport) {
       *pQueueFamilyIndex = i;
       free(arr);
@@ -122,20 +529,10 @@ ErrVal getPresentQueueFamilyIndex(uint32_t *pQueueFamilyIndex,
   free(arr);
   return (ERR_NOTSUPPORTED);
 }
-
-
-ErrVal new_Instance(                            //
-    VkInstance *pInstance,                      //
-    const uint32_t enabledLayerCount,           //
-    const char *const *ppEnabledLayerNames,     //
-    const uint32_t enabledExtensionCount,       //
-    const char *const *ppEnabledExtensionNames, //
-    const bool enableGLFWRequiredExtensions,    //
-    const bool enableDebugRequiredExtensions,   //
-    const char *appname                         //
-) {
+ErrVal new_Instance( VkInstance *pInstance, const uint32_t enabledLayerCount, const char *const *ppEnabledLayerNames,     
+const uint32_t enabledExtensionCount, const char *const *ppEnabledExtensionNames, const bool enableGLFWRequiredExtensions,    
+const bool enableDebugRequiredExtensions, const char *appname) {
   // first create a new malloced list of all extensions we need
-
   // this variable represents the total number of extensions (including debug
   // and glfw)
   uint32_t allExtensionCount = enabledExtensionCount;
@@ -155,8 +552,7 @@ ErrVal new_Instance(                            //
   }
 
   // allocate space for all extensions
-  const char **ppAllExtensionNames =
-     (const char **) malloc(allExtensionCount * sizeof(const char *));
+const char **ppAllExtensionNames = (const char **) malloc(allExtensionCount * sizeof(const char *));
   if (ppAllExtensionNames == NULL) {
     LOG_ERROR(ERR_LEVEL_FATAL, "Could not allocate memory");
     PANIC();
@@ -169,8 +565,7 @@ ErrVal new_Instance(                            //
   if (enableGLFWRequiredExtensions) {
     // get the list of glfw extensions
     uint32_t glfwExtensionCount = 0;
-    const char **glfwExtensionNames =
-        glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+    const char **glfwExtensionNames = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
     // copy each name to the total list of extensions
     for (size_t i = 0; i < glfwExtensionCount; i++) {
@@ -192,23 +587,13 @@ ErrVal new_Instance(                            //
   }
 
   /* Create app info */
-  VkApplicationInfo appInfo{};
-  appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-  appInfo.pApplicationName = appname;
-  appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-  appInfo.pEngineName = "vulkan_utils.c";
-  appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-  appInfo.apiVersion = VK_API_VERSION_1_2;
 
-  /* Create info */
-  VkInstanceCreateInfo createInfo{};
-  createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-  createInfo.pApplicationInfo = &appInfo;
-  createInfo.enabledExtensionCount = allExtensionCount;
-  createInfo.ppEnabledExtensionNames = ppAllExtensionNames;
-  createInfo.enabledLayerCount = enabledLayerCount;
-  createInfo.ppEnabledLayerNames = ppEnabledLayerNames;
-  /* Actually create instance */
+  VkApplicationInfo appInfo = {VK_STRUCTURE_TYPE_APPLICATION_INFO, nullptr, "Allrighty",
+  VK_MAKE_VERSION(1, 0, 0),"vulkan_utils.c",VK_MAKE_VERSION(1, 0, 0),VK_API_VERSION_1_2};
+
+ VkInstanceCreateInfo createInfo = { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, nullptr, 0,&appInfo, enabledLayerCount,
+  ppEnabledLayerNames,allExtensionCount,ppAllExtensionNames,};
+
   VkResult result = vkCreateInstance(&createInfo, NULL, pInstance);
   if (result != VK_SUCCESS) {
     LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "Failed to create instance, error code: %s",
@@ -216,14 +601,12 @@ ErrVal new_Instance(                            //
     PANIC();
   }
 
-  // free our list of all the extensions
   free(ppAllExtensionNames);
 
   return (ERR_OK);
 };
 
-ErrVal new_DebugCallback(VkDebugUtilsMessengerEXT *pCallback,
-                         const VkInstance instance) {
+ErrVal new_DebugCallback(VkDebugUtilsMessengerEXT *pCallback,const VkInstance instance) {
   VkDebugUtilsMessengerCreateInfoEXT createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
   createInfo.messageSeverity = //VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT|
@@ -235,9 +618,8 @@ ErrVal new_DebugCallback(VkDebugUtilsMessengerEXT *pCallback,
   createInfo.pfnUserCallback = debugCallback;
 
   /* Returns a function pointer */
-  PFN_vkCreateDebugUtilsMessengerEXT func =
-      (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
-          instance, "vkCreateDebugUtilsMessengerEXT");
+PFN_vkCreateDebugUtilsMessengerEXT func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
+instance, "vkCreateDebugUtilsMessengerEXT");
   if (!func) {
     LOG_ERROR(ERR_LEVEL_FATAL, "Failed to find extension function");
     PANIC();
@@ -252,18 +634,15 @@ ErrVal new_DebugCallback(VkDebugUtilsMessengerEXT *pCallback,
   return (ERR_NOTSUPPORTED);
 };
 
-ErrVal getQueueFamilyIndexByCapability(uint32_t *pQueueFamilyIndex,
-                                       const VkPhysicalDevice device,
-                                       const VkQueueFlags bit) {
+ErrVal getQueueFamilyIndexByCapability(uint32_t *pQueueFamilyIndex,const VkPhysicalDevice device,const VkQueueFlags bit) {
   uint32_t queueFamilyCount = 0;
   vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, NULL);
   if (queueFamilyCount == 0) {
     LOG_ERROR(ERR_LEVEL_WARN, "no device queues found");
     return (ERR_NOTSUPPORTED);
   }
-  VkQueueFamilyProperties *pFamilyProperties =
-      (VkQueueFamilyProperties *)malloc(queueFamilyCount *
-                                        sizeof(VkQueueFamilyProperties));
+
+VkQueueFamilyProperties *pFamilyProperties = (VkQueueFamilyProperties *)malloc(queueFamilyCount * sizeof(VkQueueFamilyProperties));
   if (!pFamilyProperties) {
     LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "Failed to get device queue index: %s",
                    strerror(errno));
@@ -272,8 +651,7 @@ ErrVal getQueueFamilyIndexByCapability(uint32_t *pQueueFamilyIndex,
   vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount,
                                            pFamilyProperties);
   for (uint32_t i = 0; i < queueFamilyCount; i++) {
-    if (pFamilyProperties[i].queueCount > 0 &&
-        (pFamilyProperties[0].queueFlags & bit)) {
+    if (pFamilyProperties[i].queueCount > 0 && (pFamilyProperties[0].queueFlags & bit)) {
       free(pFamilyProperties);
       *pQueueFamilyIndex = i;
       return (ERR_OK);
@@ -305,13 +683,8 @@ ErrVal getPhysicalDevice(VkPhysicalDevice *pDevice, const VkInstance instance) {
     /* TODO confirm it has required properties */
     vkGetPhysicalDeviceProperties(arr[i], &deviceProperties);
     uint32_t deviceQueueIndex;
-    uint32_t ret = getQueueFamilyIndexByCapability(&deviceQueueIndex, arr[i],
-                                                   VK_QUEUE_GRAPHICS_BIT |
-                                                       VK_QUEUE_COMPUTE_BIT);
-    if (ret == VK_SUCCESS) {
-      selectedDevice = arr[i];
-      break;
-    }
+uint32_t ret = getQueueFamilyIndexByCapability(&deviceQueueIndex, arr[i], VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
+    if (ret == VK_SUCCESS) { selectedDevice = arr[i]; break;}
   }
   free(arr);
   if (selectedDevice == VK_NULL_HANDLE) {
@@ -323,21 +696,13 @@ ErrVal getPhysicalDevice(VkPhysicalDevice *pDevice, const VkInstance instance) {
   }
 }
 
-/**
- * Deletes VkDevice created in new_Device
- */
-void delete_Device(VkDevice *pDevice) {
-  vkDestroyDevice(*pDevice, NULL);
-  *pDevice = VK_NULL_HANDLE;
-};
+void delete_Device(VkDevice *pDevice) { vkDestroyDevice(*pDevice, NULL); *pDevice = VK_NULL_HANDLE;};
 
-ErrVal new_GlfwWindow(GLFWwindow **ppGlfwWindow, const char *name,
-                      VkExtent2D dimensions) {
+ErrVal new_GlfwWindow(GLFWwindow **ppGlfwWindow, const char *name, VkExtent2D dimensions) {
   /* Not resizable */
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-  *ppGlfwWindow = glfwCreateWindow((int)dimensions.width,
-                                   (int)dimensions.height, name, NULL, NULL);
+  *ppGlfwWindow = glfwCreateWindow((int)dimensions.width, (int)dimensions.height, name, NULL, NULL);
   if (*ppGlfwWindow == NULL) {
     LOG_ERROR(ERR_LEVEL_ERROR, "failed to create GLFW window");
     return (ERR_UNKNOWN);
@@ -347,8 +712,7 @@ ErrVal new_GlfwWindow(GLFWwindow **ppGlfwWindow, const char *name,
 
 /* Creates a new window surface using the glfw libraries. This must be deleted
  * with the delete_Surface function*/
-ErrVal new_SurfaceFromGLFW(VkSurfaceKHR *pSurface, GLFWwindow *pWindow,
-                           const VkInstance instance) {
+ErrVal new_SurfaceFromGLFW(VkSurfaceKHR *pSurface, GLFWwindow *pWindow,const VkInstance instance) {
   VkResult res = glfwCreateWindowSurface(instance, pWindow, NULL, pSurface);
   if (res != VK_SUCCESS) {
     LOG_ERROR(ERR_LEVEL_FATAL, "failed to create surface, quitting");
@@ -366,10 +730,8 @@ ErrVal getExtentWindow(VkExtent2D *pExtent, GLFWwindow *pWindow) {
   return (ERR_OK);
 };
 
-ErrVal new_Device(VkDevice *pDevice, const VkPhysicalDevice physicalDevice,
-                  const uint32_t queueFamilyIndex,
-                  const uint32_t enabledExtensionCount,
-                  const char *const *ppEnabledExtensionNames) {
+ErrVal new_Device(VkDevice *pDevice, const VkPhysicalDevice physicalDevice, const uint32_t queueFamilyIndex,
+                  const uint32_t enabledExtensionCount, const char *const *ppEnabledExtensionNames) {
   VkPhysicalDeviceFeatures deviceFeatures {};
   VkDeviceQueueCreateInfo queueCreateInfo {};
   queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
@@ -395,14 +757,13 @@ ErrVal new_Device(VkDevice *pDevice, const VkPhysicalDevice physicalDevice,
   }
   return (ERR_OK);
 };
-ErrVal getQueue(VkQueue *pQueue, const VkDevice device,
-                const uint32_t deviceQueueIndex) {
-  vkGetDeviceQueue(device, deviceQueueIndex, 0, pQueue);
+
+ErrVal getQueue(VkQueue *pQueue, const VkDevice device,const uint32_t deviceQueueIndex) {
+     vkGetDeviceQueue(device, deviceQueueIndex, 0, pQueue);
   return (ERR_OK);
 };
 
-ErrVal new_CommandPool(VkCommandPool *pCommandPool, const VkDevice device,
-                       const uint32_t queueFamilyIndex) {
+ErrVal new_CommandPool(VkCommandPool *pCommandPool, const VkDevice device,   const uint32_t queueFamilyIndex) {
   VkCommandPoolCreateInfo poolInfo {};
   poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
   poolInfo.queueFamilyIndex = queueFamilyIndex;
@@ -417,26 +778,20 @@ ErrVal new_CommandPool(VkCommandPool *pCommandPool, const VkDevice device,
 };
 
 
-ErrVal getPreferredSurfaceFormat(VkSurfaceFormatKHR *pSurfaceFormat,
-                                 const VkPhysicalDevice physicalDevice,
-                                 const VkSurfaceKHR surface) {
+ErrVal getPreferredSurfaceFormat(VkSurfaceFormatKHR *pSurfaceFormat,const VkPhysicalDevice physicalDevice,
+                        const VkSurfaceKHR surface) {
   uint32_t formatCount = 0;
   VkSurfaceFormatKHR *pSurfaceFormats;
-  vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount,
-                                       NULL);
-  if (formatCount == 0) {
-    return (ERR_NOTSUPPORTED);
-  }
+  vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, NULL);
+  if (formatCount == 0) {return (ERR_NOTSUPPORTED);}
 
-  pSurfaceFormats =
-      (VkSurfaceFormatKHR *)malloc(formatCount * sizeof(VkSurfaceFormatKHR));
+  pSurfaceFormats = (VkSurfaceFormatKHR *)malloc(formatCount * sizeof(VkSurfaceFormatKHR));
   if (!pSurfaceFormats) {
     LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "could not get preferred format: %s",
                    strerror(errno));
     PANIC();
   }
-  vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount,
-                                       pSurfaceFormats);
+  vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, pSurfaceFormats);
 
   VkSurfaceFormatKHR preferredFormat {};
   if (formatCount == 1 && pSurfaceFormats[0].format == VK_FORMAT_UNDEFINED) {
@@ -466,16 +821,11 @@ ErrVal getPreferredSurfaceFormat(VkSurfaceFormatKHR *pSurfaceFormat,
   return (ERR_OK);
 };
 
-ErrVal new_Swapchain(VkSwapchainKHR *pSwapchain, uint32_t *pImageCount,
-                     const VkSwapchainKHR oldSwapchain,
-                     const VkSurfaceFormatKHR surfaceFormat,
-                     const VkPhysicalDevice physicalDevice,
-                     const VkDevice device, const VkSurfaceKHR surface,
-                     const VkExtent2D extent, const uint32_t graphicsIndex,
-                     const uint32_t presentIndex) {
+ErrVal new_Swapchain(VkSwapchainKHR *pSwapchain, uint32_t *pImageCount,  const VkSwapchainKHR oldSwapchain,
+ const VkSurfaceFormatKHR surfaceFormat,  const VkPhysicalDevice physicalDevice,const VkDevice device, 
+ const VkSurfaceKHR surface, const VkExtent2D extent, const uint32_t graphicsIndex,const uint32_t presentIndex) {
   VkSurfaceCapabilitiesKHR capabilities;
-  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface,
-                                            &capabilities);
+  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &capabilities);
 
   // it's important to note that minImageCount isn't necessarily the size of the
   // swapchain we get
@@ -514,8 +864,7 @@ ErrVal new_Swapchain(VkSwapchainKHR *pSwapchain, uint32_t *pImageCount,
     PANIC();
   }
 
-  VkResult imageCountRes =
-      vkGetSwapchainImagesKHR(device, *pSwapchain, pImageCount, NULL);
+  VkResult imageCountRes = vkGetSwapchainImagesKHR(device, *pSwapchain, pImageCount, NULL);
   if (imageCountRes != VK_SUCCESS) {
     LOG_ERROR_ARGS(ERR_LEVEL_ERROR,
                    "Failed to retrieve swap chain image count, error code: %s",
@@ -525,18 +874,14 @@ ErrVal new_Swapchain(VkSwapchainKHR *pSwapchain, uint32_t *pImageCount,
 
   return (ERR_OK);
 };
-ErrVal getSwapchainImages(         //
-    VkImage *pSwapchainImages,     //
-    const uint32_t imageCount,     //
-    const VkDevice device,         //
-    const VkSwapchainKHR swapchain //
-) {
+ErrVal getSwapchainImages(VkImage *pSwapchainImages, const uint32_t imageCount, const VkDevice device, 
+const VkSwapchainKHR swapchain) {
 
   // we are going to try to write in imageCount images, but its possible that
   // we get less or more
   uint32_t imagesWritten = imageCount;
-  VkResult res = vkGetSwapchainImagesKHR(device, swapchain, &imagesWritten,
-                                         pSwapchainImages);
+  VkResult res = vkGetSwapchainImagesKHR(device, swapchain, &imagesWritten,pSwapchainImages);
+
   if (res != VK_SUCCESS) {
     LOG_ERROR_ARGS(ERR_LEVEL_ERROR,
                    "failed to get swap chain images, error: %s",
@@ -552,8 +897,7 @@ ErrVal getSwapchainImages(         //
   return (ERR_OK);
 };
 
-ErrVal new_ImageView(VkImageView *pImageView, const VkDevice device,
-                     const VkImage image, const VkFormat format,
+ErrVal new_ImageView(VkImageView *pImageView, const VkDevice device, const VkImage image, const VkFormat format,
                      const uint32_t aspectMask) {
   VkImageViewCreateInfo createInfo  {};
   createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -579,32 +923,19 @@ ErrVal new_ImageView(VkImageView *pImageView, const VkDevice device,
   return (ERR_OK);
 };
 
-void delete_ImageView(VkImageView *pImageView, VkDevice device) {
-  vkDestroyImageView(device, *pImageView, NULL);
-  *pImageView = VK_NULL_HANDLE;
-}
+void delete_ImageView(VkImageView *pImageView, VkDevice device) { vkDestroyImageView(device, *pImageView, NULL);
+  *pImageView = VK_NULL_HANDLE;}
 
-void delete_SwapchainImageViews( //
-    VkImageView *pImageViews,    //
-    const uint32_t imageCount,   //
-    const VkDevice device        //
-) {
+void delete_SwapchainImageViews(VkImageView *pImageViews, const uint32_t imageCount, const VkDevice device) {
   for (uint32_t i = 0; i < imageCount; i++) {
     delete_ImageView(&pImageViews[i], device);
   }
 }
 
-
-ErrVal new_SwapchainImageViews(      //
-    VkImageView *pImageViews,        //
-    const VkImage *pSwapchainImages, //
-    const uint32_t imageCount,       //
-    const VkDevice device,           //
-    const VkFormat format            //
-) {
+ErrVal new_SwapchainImageViews(VkImageView *pImageViews, const VkImage *pSwapchainImages,const uint32_t imageCount,       
+const VkDevice device, const VkFormat format) {
   for (uint32_t i = 0; i < imageCount; i++) {
-    ErrVal ret = new_ImageView(&(pImageViews[i]), device, pSwapchainImages[i],
-                               format, VK_IMAGE_ASPECT_COLOR_BIT);
+    ErrVal ret = new_ImageView(&(pImageViews[i]), device, pSwapchainImages[i],format, VK_IMAGE_ASPECT_COLOR_BIT);
     if (ret != ERR_OK) {
       LOG_ERROR(ERR_LEVEL_ERROR, "could not create swap chain image views");
       delete_SwapchainImageViews(pImageViews, i, device);
@@ -614,10 +945,8 @@ ErrVal new_SwapchainImageViews(      //
   return (ERR_OK);
 };
 
-ErrVal getMemoryTypeIndex(uint32_t *memoryTypeIndex,
-                          const uint32_t memoryTypeBits,
-                          const VkMemoryPropertyFlags memoryPropertyFlags,
-                          const VkPhysicalDevice physicalDevice) {
+ErrVal getMemoryTypeIndex(uint32_t *memoryTypeIndex,const uint32_t memoryTypeBits, 
+const VkMemoryPropertyFlags memoryPropertyFlags,const VkPhysicalDevice physicalDevice) {
 
   /* Retrieve memory properties */
   VkPhysicalDeviceMemoryProperties memProperties;
@@ -626,8 +955,7 @@ ErrVal getMemoryTypeIndex(uint32_t *memoryTypeIndex,
   for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
     if ((memoryTypeBits &
          (1 << i)) && /* TODO figure out what's going on over here */
-        (memProperties.memoryTypes[i].propertyFlags & memoryPropertyFlags) ==
-            memoryPropertyFlags) {
+        (memProperties.memoryTypes[i].propertyFlags & memoryPropertyFlags) == memoryPropertyFlags) {
       *memoryTypeIndex = i;
       return (ERR_OK);
     }
@@ -636,17 +964,9 @@ ErrVal getMemoryTypeIndex(uint32_t *memoryTypeIndex,
   return (ERR_MEMORY);
 }
 
-ErrVal new_Image(                           //
-    VkImage *pImage,                        //
-    VkDeviceMemory *pImageMemory,           //
-    const VkExtent2D dimensions,            //
-    const VkFormat format,                  //
-    const VkImageTiling tiling,             //
-    const VkImageUsageFlags usage,          //
-    const VkMemoryPropertyFlags properties, //
-    const VkPhysicalDevice physicalDevice,  //
-    const VkDevice device                   //
-) {
+ErrVal new_Image(VkImage *pImage, VkDeviceMemory *pImageMemory, const VkExtent2D dimensions, const VkFormat format,                  
+const VkImageTiling tiling, const VkImageUsageFlags usage, const VkMemoryPropertyFlags properties, 
+const VkPhysicalDevice physicalDevice,  const VkDevice device) {
   VkImageCreateInfo imageInfo {};
   imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
   imageInfo.imageType = VK_IMAGE_TYPE_2D;
@@ -676,9 +996,8 @@ ErrVal new_Image(                           //
   allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   allocInfo.allocationSize = memRequirements.size;
 
-  ErrVal memGetResult = getMemoryTypeIndex(&allocInfo.memoryTypeIndex,
-                                           memRequirements.memoryTypeBits,
-                                           properties, physicalDevice);
+ErrVal memGetResult = getMemoryTypeIndex(&allocInfo.memoryTypeIndex,memRequirements.memoryTypeBits,
+properties, physicalDevice);
 
   if (memGetResult != ERR_OK) {
     LOG_ERROR(ERR_LEVEL_ERROR, "failed to create image: allocation failed");
@@ -702,20 +1021,13 @@ ErrVal new_Image(                           //
   return (ERR_OK);
 }
 
-void delete_Image(VkImage *pImage, const VkDevice device) {
-  vkDestroyImage(device, *pImage, NULL);
-}
+void delete_Image(VkImage *pImage, const VkDevice device) {vkDestroyImage(device, *pImage, NULL);}
 
-/* Gets image format of depth */
-void getDepthFormat(VkFormat *pFormat) {
-  /* TODO we might want to redo this so that there are more compatible images */
-  *pFormat = VK_FORMAT_D32_SFLOAT;
-}
+/* Gets image format of depth *//* TODO we might want to redo this so that there are more compatible images */
+void getDepthFormat(VkFormat *pFormat) {*pFormat = VK_FORMAT_D32_SFLOAT;}
 
-ErrVal new_DepthImage(VkImage *pImage, VkDeviceMemory *pImageMemory,
-                      const VkExtent2D swapchainExtent,
-                      const VkPhysicalDevice physicalDevice,
-                      const VkDevice device) {
+ErrVal new_DepthImage(VkImage *pImage, VkDeviceMemory *pImageMemory,const VkExtent2D swapchainExtent,
+                      const VkPhysicalDevice physicalDevice,const VkDevice device) {
   VkFormat depthFormat {};
   getDepthFormat(&depthFormat);
   ErrVal retVal = new_Image(
@@ -730,8 +1042,7 @@ ErrVal new_DepthImage(VkImage *pImage, VkDeviceMemory *pImageMemory,
   return (ERR_OK);
 }
 
-ErrVal new_DepthImageView(VkImageView *pImageView, const VkDevice device,
-                          const VkImage depthImage) {
+ErrVal new_DepthImageView(VkImageView *pImageView, const VkDevice device,const VkImage depthImage) {
   VkFormat depthFormat;
   getDepthFormat(&depthFormat);
   ErrVal retVal = new_ImageView(pImageView, device, depthImage, depthFormat,
@@ -743,7 +1054,7 @@ ErrVal new_DepthImageView(VkImageView *pImageView, const VkDevice device,
 };
 
 ErrVal new_ShaderModule(VkShaderModule *pShaderModule, const VkDevice device,
-                        const uint32_t codeSize, const uint32_t *pCode) {
+const uint32_t codeSize, const uint32_t *pCode) {
   VkShaderModuleCreateInfo createInfo {};
   createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
   createInfo.codeSize = codeSize;
@@ -756,9 +1067,8 @@ ErrVal new_ShaderModule(VkShaderModule *pShaderModule, const VkDevice device,
   return (ERR_OK);
 };
 
-ErrVal new_VertexDisplayRenderPass(VkRenderPass *pRenderPass,
-                                   const VkDevice device,
-                                   const VkFormat swapchainImageFormat) {
+ErrVal new_VertexDisplayRenderPass(VkRenderPass *pRenderPass,const VkDevice device,
+const VkFormat swapchainImageFormat) {
   VkAttachmentDescription colorAttachment {};
   colorAttachment.format = swapchainImageFormat;
   colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -826,8 +1136,7 @@ ErrVal new_VertexDisplayRenderPass(VkRenderPass *pRenderPass,
   return (ERR_OK);
 };
 
-ErrVal new_VertexDisplayPipelineLayout(VkPipelineLayout *pPipelineLayout,
-                                       const VkDevice device) {
+ErrVal new_VertexDisplayPipelineLayout(VkPipelineLayout *pPipelineLayout,const VkDevice device) {
   VkPushConstantRange pushConstantRange {};
   pushConstantRange.offset = 0;
   pushConstantRange.size = sizeof(mat4x4);
@@ -849,19 +1158,14 @@ ErrVal new_VertexDisplayPipelineLayout(VkPipelineLayout *pPipelineLayout,
   return (ERR_OK);
 }
 
-void delete_PipelineLayout(VkPipelineLayout *pPipelineLayout,
-                           const VkDevice device) {
+void delete_PipelineLayout(VkPipelineLayout *pPipelineLayout,const VkDevice device) {
   vkDestroyPipelineLayout(device, *pPipelineLayout, NULL);
   *pPipelineLayout = VK_NULL_HANDLE;
 }
 
-ErrVal new_VertexDisplayPipeline(VkPipeline *pGraphicsPipeline,
-                                 const VkDevice device,
-                                 const VkShaderModule vertShaderModule,
-                                 const VkShaderModule fragShaderModule,
-                                 const VkExtent2D extent,
-                                 const VkRenderPass renderPass,
-                                 const VkPipelineLayout pipelineLayout) {
+ErrVal new_VertexDisplayPipeline(VkPipeline *pGraphicsPipeline, const VkDevice device,
+const VkShaderModule vertShaderModule, const VkShaderModule fragShaderModule,const VkExtent2D extent,
+const VkRenderPass renderPass,const VkPipelineLayout pipelineLayout) {
   VkPipelineShaderStageCreateInfo vertShaderStageInfo {};
   vertShaderStageInfo.sType =
       VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -876,8 +1180,7 @@ ErrVal new_VertexDisplayPipeline(VkPipeline *pGraphicsPipeline,
   fragShaderStageInfo.module = fragShaderModule;
   fragShaderStageInfo.pName = "main";
 
-  VkPipelineShaderStageCreateInfo shaderStages[2] = {vertShaderStageInfo,
-                                                     fragShaderStageInfo};
+  VkPipelineShaderStageCreateInfo shaderStages[2] = {vertShaderStageInfo,fragShaderStageInfo};
 
   VkVertexInputBindingDescription bindingDescription {};
   bindingDescription.binding = 0;
@@ -997,26 +1300,20 @@ ErrVal new_VertexDisplayPipeline(VkPipeline *pGraphicsPipeline,
   return (ERR_OK);
 }
 
-void delete_Pipeline(VkPipeline *pPipeline, const VkDevice device) {
-  vkDestroyPipeline(device, *pPipeline, NULL);
-}
+void delete_Pipeline(VkPipeline *pPipeline, const VkDevice device) {vkDestroyPipeline(device, *pPipeline, NULL);}
 
-ErrVal new_Framebuffer(VkFramebuffer *pFramebuffer, const VkDevice device,
-                       const VkRenderPass renderPass,
-                       const VkImageView imageView,
-                       const VkImageView depthImageView,
-                       const VkExtent2D swapchainExtent) {
+ErrVal new_Framebuffer(VkFramebuffer *pFramebuffer, const VkDevice device, const VkRenderPass renderPass,
+const VkImageView imageView, const VkImageView depthImageView,const VkExtent2D swapchainExtent) {
   VkFramebufferCreateInfo framebufferInfo {};
   framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
   framebufferInfo.renderPass = renderPass;
   framebufferInfo.attachmentCount = 2;
   VkImageView view[] = {imageView, depthImageView};
-  framebufferInfo.pAttachments = view;//(VkImageView[]){imageView, depthImageView};//( VkImageView *)imageView, depthImageView;
+  framebufferInfo.pAttachments = view;
   framebufferInfo.width = swapchainExtent.width;
   framebufferInfo.height = swapchainExtent.height;
   framebufferInfo.layers = 1;
-  VkResult res =
-      vkCreateFramebuffer(device, &framebufferInfo, NULL, pFramebuffer);
+  VkResult res = vkCreateFramebuffer(device, &framebufferInfo, NULL, pFramebuffer);
   if (res == VK_SUCCESS) {
     return (ERR_OK);
   } else {
@@ -1031,13 +1328,9 @@ void delete_Framebuffer(VkFramebuffer *pFramebuffer, VkDevice device) {
   *pFramebuffer = VK_NULL_HANDLE;
 }
 
-ErrVal new_SwapchainFramebuffers(VkFramebuffer *pFramebuffers,
-                                 const VkDevice device,
-                                 const VkRenderPass renderPass,
-                                 const VkExtent2D swapchainExtent,
-                                 const uint32_t imageCount,
-                                 const VkImageView depthImageView,
-                                 const VkImageView *pSwapchainImageViews) {
+ErrVal new_SwapchainFramebuffers(VkFramebuffer *pFramebuffers, const VkDevice device,const VkRenderPass renderPass,
+const VkExtent2D swapchainExtent, const uint32_t imageCount, const VkImageView depthImageView,
+const VkImageView *pSwapchainImageViews) {
   for (uint32_t i = 0; i < imageCount; i++) {
     ErrVal retVal = new_Framebuffer(&pFramebuffers[i], device, renderPass,
                                     pSwapchainImageViews[i], depthImageView,
@@ -1063,28 +1356,18 @@ ErrVal new_SwapchainFramebuffers(VkFramebuffer *pFramebuffers,
   vkDestroyCommandPool(device, *pCommandPool, NULL);
 }
 */
-ErrVal recordVertexDisplayCommandBuffer(                //
-    VkCommandBuffer commandBuffer,                      //
-    const VkFramebuffer swapchainFramebuffer,           //
-    const VkBuffer vertexBuffer,                        //
-    const uint32_t vertexCount,                         //
-    const VkRenderPass renderPass,                      //
-    const VkPipelineLayout vertexDisplayPipelineLayout, //
-    const VkPipeline vertexDisplayPipeline,             //
-    const VkExtent2D swapchainExtent,                   //
-    const mat4x4 cameraTransform,                       //
-    const VkClearColorValue clearColor                  //
-) {
+ErrVal recordVertexDisplayCommandBuffer( VkCommandBuffer commandBuffer, const VkFramebuffer swapchainFramebuffer,           
+const VkBuffer vertexBuffer, const uint32_t vertexCount, const VkRenderPass renderPass,
+const VkPipelineLayout vertexDisplayPipelineLayout, const VkPipeline vertexDisplayPipeline, 
+const VkExtent2D swapchainExtent, const mat4x4 cameraTransform, const VkClearColorValue clearColor) {
   VkCommandBufferBeginInfo beginInfo {};
   beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
   beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
   VkResult beginRet = vkBeginCommandBuffer(commandBuffer, &beginInfo);
 
-  if (beginRet != VK_SUCCESS) {
-    LOG_ERROR_ARGS(ERR_LEVEL_FATAL,
-                   "failed to record into graphics command buffer: %s",
-                   vkstrerror(beginRet));
+  if (beginRet != VK_SUCCESS) {LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "failed to record into graphics command buffer: %s",
+    vkstrerror(beginRet));
     PANIC();
   }
 
@@ -1145,15 +1428,13 @@ void delete_Semaphore(VkSemaphore *pSemaphore, const VkDevice device) {
   *pSemaphore = VK_NULL_HANDLE;
 }
 
-void delete_Semaphores(VkSemaphore *pSemaphores, const uint32_t semaphoreCount,
-                       const VkDevice device) {
+void delete_Semaphores(VkSemaphore *pSemaphores, const uint32_t semaphoreCount,const VkDevice device) {
   for (uint32_t i = 0; i < semaphoreCount; i++) {
     delete_Semaphore(&pSemaphores[i], device);
   }
 }
 
-ErrVal new_Semaphores(VkSemaphore *pSemaphores, const uint32_t semaphoreCount,
-                      const VkDevice device) {
+ErrVal new_Semaphores(VkSemaphore *pSemaphores, const uint32_t semaphoreCount,const VkDevice device) {
   for (uint32_t i = 0; i < semaphoreCount; i++) {
     ErrVal retVal = new_Semaphore(&pSemaphores[i], device);
     if (retVal != ERR_OK) {
@@ -1185,8 +1466,7 @@ void delete_Fence(VkFence *pFence, const VkDevice device) {
   *pFence = VK_NULL_HANDLE;
 };
 
-void delete_Fences(VkFence *pFences, const uint32_t fenceCount,
-                   const VkDevice device) {
+void delete_Fences(VkFence *pFences, const uint32_t fenceCount, const VkDevice device) {
   for (uint32_t i = 0; i < fenceCount; i++) {
     delete_Fence(&pFences[i], device);
   }
@@ -1229,16 +1509,11 @@ ErrVal waitAndResetFence(VkFence fence, const VkDevice device) {
   return (ERR_OK);
 }
 
-ErrVal getNextSwapchainImage(           //
-    uint32_t *pImageIndex,              //
-    const VkSwapchainKHR swapchain,     //
-    const VkDevice device,              //
-    VkSemaphore imageAvailableSemaphore //
-) {
+ErrVal getNextSwapchainImage(uint32_t *pImageIndex, const VkSwapchainKHR swapchain, const VkDevice device,              
+VkSemaphore imageAvailableSemaphore ) {
   // get the next image from the swapchain
-  VkResult nextImageResult = vkAcquireNextImageKHR(
-      device, swapchain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE,
-      pImageIndex);
+  VkResult nextImageResult = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAvailableSemaphore, 
+  VK_NULL_HANDLE,pImageIndex);
   if (nextImageResult == VK_ERROR_OUT_OF_DATE_KHR) {
     // If the window has been resized, the result will be an out of date error,
     // meaning that the swap chain must be resized
@@ -1253,20 +1528,12 @@ ErrVal getNextSwapchainImage(           //
 }
 
 // Draws a frame to the surface provided, and sets things up for the next frame
-ErrVal drawFrame(                        //
-    VkCommandBuffer commandBuffer,       //
-    VkSwapchainKHR swapchain,            //
-    const uint32_t swapchainImageIndex,  //
-    VkSemaphore imageAvailableSemaphore, //
-    VkSemaphore renderFinishedSemaphore, //
-    VkFence inFlightFence,               //
-    const VkQueue graphicsQueue,         //
-    const VkQueue presentQueue           //
-) {
+ErrVal drawFrame( VkCommandBuffer commandBuffer, VkSwapchainKHR swapchain, const uint32_t swapchainImageIndex,  
+VkSemaphore imageAvailableSemaphore, VkSemaphore renderFinishedSemaphore, VkFence inFlightFence, 
+const VkQueue graphicsQueue, const VkQueue presentQueue) {
 
   // Sets up for next frame
-  VkPipelineStageFlags waitStages[] = {
-      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+  VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 
   VkSubmitInfo submitInfo {};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -1307,20 +1574,15 @@ ErrVal drawFrame(                        //
 }
 */
 
-ErrVal new_CommandBuffers(             //
-    VkCommandBuffer *pCommandBuffer,   //
-    const uint32_t commandBufferCount, //
-    const VkCommandPool commandPool,   //
-    const VkDevice device              //
-) {
+ErrVal new_CommandBuffers( VkCommandBuffer *pCommandBuffer, const uint32_t commandBufferCount, 
+const VkCommandPool commandPool, const VkDevice device) {
   VkCommandBufferAllocateInfo allocateInfo {};
   allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
   allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
   allocateInfo.commandPool = commandPool;
   allocateInfo.commandBufferCount = commandBufferCount;
 
-  VkResult allocateResult =
-      vkAllocateCommandBuffers(device, &allocateInfo, pCommandBuffer);
+  VkResult allocateResult =vkAllocateCommandBuffers(device, &allocateInfo, pCommandBuffer);
   if (allocateResult != VK_SUCCESS) {
     LOG_ERROR_ARGS(ERR_LEVEL_FATAL, "failed to allocate command buffers: %s",
                    vkstrerror(allocateResult));
@@ -1330,21 +1592,17 @@ ErrVal new_CommandBuffers(             //
   return (ERR_OK);
 }
 
+ErrVal new_Buffer_DeviceMemory(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,const VkDeviceSize size,
+const VkPhysicalDevice physicalDevice,const VkDevice device,const VkBufferUsageFlags usage,
+const VkMemoryPropertyFlags properties) {
 
-ErrVal new_Buffer_DeviceMemory(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
-                               const VkDeviceSize size,
-                               const VkPhysicalDevice physicalDevice,
-                               const VkDevice device,
-                               const VkBufferUsageFlags usage,
-                               const VkMemoryPropertyFlags properties) {
   VkBufferCreateInfo bufferInfo {};
   bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
   bufferInfo.size = size;
   bufferInfo.usage = usage;
   bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
   /* Create buffer */
-  VkResult bufferCreateResult =
-      vkCreateBuffer(device, &bufferInfo, NULL, pBuffer);
+  VkResult bufferCreateResult =vkCreateBuffer(device, &bufferInfo, NULL, pBuffer);
   if (bufferCreateResult != VK_SUCCESS) {
     LOG_ERROR_ARGS(ERR_LEVEL_ERROR, "failed to create buffer: %s",
                    vkstrerror(bufferCreateResult));
@@ -1358,8 +1616,7 @@ ErrVal new_Buffer_DeviceMemory(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
   allocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   allocateInfo.allocationSize = memoryRequirements.size;
   /* Get the type of memory required, handle errors */
-  ErrVal getMemoryTypeRetVal = getMemoryTypeIndex(
-      &allocateInfo.memoryTypeIndex, memoryRequirements.memoryTypeBits,
+  ErrVal getMemoryTypeRetVal = getMemoryTypeIndex( &allocateInfo.memoryTypeIndex, memoryRequirements.memoryTypeBits,
       properties, physicalDevice);
   if (getMemoryTypeRetVal != ERR_OK) {
     LOG_ERROR(ERR_LEVEL_ERROR, "failed to get type of memory to allocate");
@@ -1367,8 +1624,7 @@ ErrVal new_Buffer_DeviceMemory(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
   }
 
   /* Actually allocate memory */
-  VkResult memoryAllocateResult =
-      vkAllocateMemory(device, &allocateInfo, NULL, pBufferMemory);
+  VkResult memoryAllocateResult =vkAllocateMemory(device, &allocateInfo, NULL, pBufferMemory);
   if (memoryAllocateResult != VK_SUCCESS) {
     LOG_ERROR_ARGS(ERR_LEVEL_ERROR, "failed to allocate memory for buffer: %s",
                    vkstrerror(memoryAllocateResult));
@@ -1378,14 +1634,11 @@ ErrVal new_Buffer_DeviceMemory(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
   return (ERR_OK);
 }
 
-
 // submits a copy to the queue, you'll later need to wait for idle
-ErrVal copyBuffer(VkBuffer destinationBuffer, const VkBuffer sourceBuffer,
-                  const VkDeviceSize size, const VkCommandPool commandPool,
-                  const VkQueue queue, const VkDevice device) {
+ErrVal copyBuffer(VkBuffer destinationBuffer, const VkBuffer sourceBuffer,const VkDeviceSize size, 
+const VkCommandPool commandPool, const VkQueue queue, const VkDevice device) {
   VkCommandBuffer copyCommandBuffer;
-  ErrVal createResult =
-      new_CommandBuffers(&copyCommandBuffer, 1, commandPool, device);
+  ErrVal createResult =new_CommandBuffers(&copyCommandBuffer, 1, commandPool, device);
   if (createResult != ERR_OK) {
   }
 
@@ -1402,9 +1655,7 @@ ErrVal copyBuffer(VkBuffer destinationBuffer, const VkBuffer sourceBuffer,
 
 VkBufferCopy copyRegion = { .srcOffset = 0, .dstOffset = 0, .size = size};
 
-  //VkBufferCopy copyRegion = {.size = size, .srcOffset = 0, .dstOffset = 0};
-  vkCmdCopyBuffer(copyCommandBuffer, sourceBuffer, destinationBuffer, 1,
-                  &copyRegion);
+  vkCmdCopyBuffer(copyCommandBuffer, sourceBuffer, destinationBuffer, 1,&copyRegion);
 
   // End buffer
   VkResult bufferEndResult = vkEndCommandBuffer(copyCommandBuffer);
@@ -1449,17 +1700,14 @@ VkBufferCopy copyRegion = { .srcOffset = 0, .dstOffset = 0, .size = size};
 
 void delete_Buffer(VkBuffer *pBuffer, const VkDevice device) {
   vkDestroyBuffer(device, *pBuffer, NULL);
-  *pBuffer = VK_NULL_HANDLE;
-}
+  *pBuffer = VK_NULL_HANDLE;}
 
 void delete_DeviceMemory(VkDeviceMemory *pDeviceMemory, const VkDevice device) {
-  vkFreeMemory(device, *pDeviceMemory, NULL);
-  *pDeviceMemory = VK_NULL_HANDLE;
-}
+vkFreeMemory(device, *pDeviceMemory, NULL);
+*pDeviceMemory = VK_NULL_HANDLE;}
 
-ErrVal copyToDeviceMemory(VkDeviceMemory *pDeviceMemory,
-                          const VkDeviceSize deviceSize, const void *source,
-                          const VkDevice device) {
+ErrVal copyToDeviceMemory(VkDeviceMemory *pDeviceMemory,const VkDeviceSize deviceSize, const void *source,
+const VkDevice device) {
   void *data;
   VkResult mapMemoryResult =
       vkMapMemory(device, *pDeviceMemory, 0, deviceSize, 0, &data);
@@ -1479,11 +1727,9 @@ ErrVal copyToDeviceMemory(VkDeviceMemory *pDeviceMemory,
   return (ERR_OK);
 }
 
-ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
-                        const Vertex *pVertices, const uint32_t vertexCount,
-                        const VkDevice device,
-                        const VkPhysicalDevice physicalDevice,
-                        const VkCommandPool commandPool, const VkQueue queue) {
+ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,const Vertex *pVertices, 
+const uint32_t vertexCount,const VkDevice device,const VkPhysicalDevice physicalDevice,
+const VkCommandPool commandPool, const VkQueue queue) {
   /* Construct staging buffers */
   VkDeviceSize bufferSize = sizeof(Vertex) * vertexCount;
   VkBuffer stagingBuffer;
@@ -1537,30 +1783,17 @@ ErrVal new_VertexBuffer(VkBuffer *pBuffer, VkDeviceMemory *pBufferMemory,
   return (ERR_OK);
 }
 
-
-
 // creates a command buffer that hasn't yet been begun
-
-void delete_CommandBuffers(            //
-    VkCommandBuffer *pCommandBuffers,  //
-    const uint32_t commandBufferCount, //
-    const VkCommandPool commandPool,   //
-    const VkDevice device              //
-) {
-  vkFreeCommandBuffers(device, commandPool, commandBufferCount,
-                       pCommandBuffers);
+void delete_CommandBuffers( VkCommandBuffer *pCommandBuffers, const uint32_t commandBufferCount, 
+const VkCommandPool commandPool, const VkDevice device) {
+  vkFreeCommandBuffers(device, commandPool, commandBufferCount, pCommandBuffers);
   for (uint32_t i = 0; i < commandBufferCount; i++) {
     pCommandBuffers[i] = VK_NULL_HANDLE;
   }
 }
 
-
-
-
-ErrVal new_ComputePipeline(VkPipeline *pPipeline,
-                           const VkPipelineLayout pipelineLayout,
-                           const VkShaderModule shaderModule,
-                           const VkDevice device) {
+ErrVal new_ComputePipeline(VkPipeline *pPipeline,const VkPipelineLayout pipelineLayout,
+const VkShaderModule shaderModule,const VkDevice device) {
 
   VkPipelineShaderStageCreateInfo shaderStageCreateInfo {};
   shaderStageCreateInfo.sType =
@@ -1585,8 +1818,7 @@ ErrVal new_ComputePipeline(VkPipeline *pPipeline,
   return (ERR_OK);
 }
 
-ErrVal new_ComputeStorageDescriptorSetLayout(
-    VkDescriptorSetLayout *pDescriptorSetLayout, const VkDevice device) {
+ErrVal new_ComputeStorageDescriptorSetLayout(VkDescriptorSetLayout *pDescriptorSetLayout, const VkDevice device) {
   VkDescriptorSetLayoutBinding storageLayoutBinding {};
   storageLayoutBinding.binding = 0;
   storageLayoutBinding.descriptorCount = 1;
@@ -1608,15 +1840,13 @@ ErrVal new_ComputeStorageDescriptorSetLayout(
   return (ERR_OK);
 }
 
-void delete_DescriptorSetLayout(VkDescriptorSetLayout *pDescriptorSetLayout,
-                                const VkDevice device) {
-  vkDestroyDescriptorSetLayout(device, *pDescriptorSetLayout, NULL);
-  *pDescriptorSetLayout = VK_NULL_HANDLE;
+void delete_DescriptorSetLayout(VkDescriptorSetLayout *pDescriptorSetLayout,const VkDevice device) {
+vkDestroyDescriptorSetLayout(device, *pDescriptorSetLayout, NULL);
+*pDescriptorSetLayout = VK_NULL_HANDLE;
 }
 
-ErrVal new_DescriptorPool(VkDescriptorPool *pDescriptorPool,
-                          const VkDescriptorType descriptorType,
-                          const uint32_t maxAllocFrom, const VkDevice device) {
+ErrVal new_DescriptorPool(VkDescriptorPool *pDescriptorPool,const VkDescriptorType descriptorType,
+const uint32_t maxAllocFrom, const VkDevice device) {
   VkDescriptorPoolSize descriptorPoolSize;
   descriptorPoolSize.type = descriptorType;
   descriptorPoolSize.descriptorCount = maxAllocFrom;
@@ -1640,17 +1870,12 @@ ErrVal new_DescriptorPool(VkDescriptorPool *pDescriptorPool,
   }
 }
 
-void delete_DescriptorPool(VkDescriptorPool *pDescriptorPool,
-                           const VkDevice device) {
-  vkDestroyDescriptorPool(device, *pDescriptorPool, NULL);
-  *pDescriptorPool = VK_NULL_HANDLE;
-}
+void delete_DescriptorPool(VkDescriptorPool *pDescriptorPool,const VkDevice device){
+vkDestroyDescriptorPool(device, *pDescriptorPool, NULL); *pDescriptorPool = VK_NULL_HANDLE;};
 
-ErrVal new_ComputeBufferDescriptorSet(
-    VkDescriptorSet *pDescriptorSet, const VkBuffer computeBufferDescriptorSet,
-    const VkDeviceSize computeBufferSize,
-    const VkDescriptorSetLayout descriptorSetLayout,
-    const VkDescriptorPool descriptorPool, const VkDevice device) {
+ErrVal new_ComputeBufferDescriptorSet(VkDescriptorSet *pDescriptorSet, const VkBuffer computeBufferDescriptorSet,
+const VkDeviceSize computeBufferSize,const VkDescriptorSetLayout descriptorSetLayout,
+const VkDescriptorPool descriptorPool, const VkDevice device) {
 
   VkDescriptorSetAllocateInfo allocateInfo {};
   allocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -1695,36 +1920,23 @@ glfwInit();
   const uint32_t validationLayerCount = 1;
   const char *ppValidationLayerNames[1] = {"VK_LAYER_KHRONOS_validation"};
 
- //  Create instance 
-  //VkInstance instance;
-  new_Instance(&context.instance, validationLayerCount, ppValidationLayerNames, 0, NULL,
-               true, true, "herro");
-
- // Enable vulkan logging to stdout 
+  new_Instance(&context.instance, validationLayerCount, ppValidationLayerNames, 0, NULL,true, true, "herro");
  
   new_DebugCallback(&context.callback, context.instance);
 
-  //VkPhysicalDevice physicalDevice;
   getPhysicalDevice(&context.physicalDevice, context.instance);
 
- 
-  //GLFWwindow *pWindow;
-  new_GlfwWindow(&context.pWindow, "error",
-                 (VkExtent2D){.width = WINDOW_WIDTH, .height = WINDOW_HEIGHT});
- // VkSurfaceKHR surface;
-  new_SurfaceFromGLFW(&context.surface, context.pWindow, context.instance);
+  new_GlfwWindow(&context.pWindow, "HellYeah", (VkExtent2D){.width = 800, .height = 600});
 
+  new_SurfaceFromGLFW(&context.surface, context.pWindow, context.instance);
  
   uint32_t graphicsIndex;
   uint32_t computeIndex;
   uint32_t presentIndex;
   {
-    uint32_t ret1 = getQueueFamilyIndexByCapability(
-        &graphicsIndex, context.physicalDevice, VK_QUEUE_GRAPHICS_BIT);
-    uint32_t ret2 = getQueueFamilyIndexByCapability(
-        &computeIndex, context.physicalDevice, VK_QUEUE_COMPUTE_BIT);
-    uint32_t ret3 =
-        getPresentQueueFamilyIndex(&presentIndex, context.physicalDevice, context.surface);
+    uint32_t ret1 = getQueueFamilyIndexByCapability(&graphicsIndex, context.physicalDevice, VK_QUEUE_GRAPHICS_BIT);
+    uint32_t ret2 = getQueueFamilyIndexByCapability(&computeIndex, context.physicalDevice, VK_QUEUE_COMPUTE_BIT);
+    uint32_t ret3 =getPresentQueueFamilyIndex(&presentIndex, context.physicalDevice, context.surface);
    
     if (ret1 != VK_SUCCESS || ret2 != VK_SUCCESS || ret3 != VK_SUCCESS) {
       LOG_ERROR(ERR_LEVEL_FATAL, "unable to acquire indices\n");
@@ -1732,53 +1944,40 @@ glfwInit();
     }
   };
 
-   //VkExtent2D swapchainExtent;
   getExtentWindow(&context.swapchainExtent, context.pWindow);
 
   /* we want to use swapchains to reduce tearing */
   const uint32_t deviceExtensionCount = 1;
   const char *ppDeviceExtensionNames[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
-  /*create device */
-  //VkDevice device;
-  new_Device(&context.device, context.physicalDevice, graphicsIndex, deviceExtensionCount,
-             ppDeviceExtensionNames);
+  new_Device(&context.device, context.physicalDevice, graphicsIndex, deviceExtensionCount,ppDeviceExtensionNames);
 
- // VkQueue graphicsQueue;
   getQueue(&context.graphicsQueue, context.device, graphicsIndex);
   VkQueue computeQueue;
   getQueue(&computeQueue, context.device, computeIndex);
   VkQueue presentQueue;
   getQueue(&presentQueue, context.device, presentIndex);
 
-  /* We can create command buffers from the command pool */
- // VkCommandPool commandPool;
   new_CommandPool(&context.commandPool, context.device, graphicsIndex);
 
   /* get preferred format of screen*/
- // VkSurfaceFormatKHR surfaceFormat;
   getPreferredSurfaceFormat(&context.surfaceFormat, context.physicalDevice, context.surface);
-//VkSwapchainKHR swapchain;
+
   uint32_t swapchainImageCount;
-  new_Swapchain(&context.swapchain, &swapchainImageCount, VK_NULL_HANDLE, context.surfaceFormat,
-                context.physicalDevice, context.device, context.surface, context.swapchainExtent, graphicsIndex,
-                presentIndex);
+  new_Swapchain(&context.swapchain, &swapchainImageCount, VK_NULL_HANDLE, context.surfaceFormat,context.physicalDevice,
+context.device, context.surface, context.swapchainExtent, graphicsIndex,presentIndex);
 
   // there are swapchainImageCount swapchainImages
   VkImage *pSwapchainImages = (VkImage *)malloc(swapchainImageCount * sizeof(VkImage));
   getSwapchainImages(pSwapchainImages, swapchainImageCount, context.device, context.swapchain);
 
   // there are swapchainImageCount swapchainImageViews
-  VkImageView *pSwapchainImageViews =
-      (VkImageView *)malloc(swapchainImageCount * sizeof(VkImageView));
-  new_SwapchainImageViews(pSwapchainImageViews, pSwapchainImages,
-                          swapchainImageCount, context.device, context.surfaceFormat.format);
+  VkImageView *pSwapchainImageViews =(VkImageView *)malloc(swapchainImageCount * sizeof(VkImageView));
+  new_SwapchainImageViews(pSwapchainImageViews, pSwapchainImages, swapchainImageCount, context.device, context.surfaceFormat.format);
 
   /* Create depth buffer */
-  //VkDeviceMemory depthImageMemory;
-  //VkImage depthImage;
-  new_DepthImage(&context.depthImage, &context.depthImageMemory, context.swapchainExtent,
-                 context.physicalDevice, context.device);
+  new_DepthImage(&context.depthImage, &context.depthImageMemory, context.swapchainExtent,context.physicalDevice,
+context.device);
   VkImageView depthImageView;
   new_DepthImageView(&depthImageView, context.device, context.depthImage);
 
@@ -1786,10 +1985,9 @@ VkShaderModule fragShaderModule;
   {
     uint32_t *fragShaderFileContents;
     uint32_t fragShaderFileLength;
-    readShaderFile("/home/petermiller/Desktop/vulkan-triangle-v1-master/assets/shaders/shader.frag.spv", &fragShaderFileLength,
+readShaderFile("/home/petermiller/Desktop/vulkan-triangle-v1-master/assets/shaders/shader.frag.spv", &fragShaderFileLength,
                    &fragShaderFileContents);
-    new_ShaderModule(&fragShaderModule, context.device, fragShaderFileLength,
-                     fragShaderFileContents);
+    new_ShaderModule(&fragShaderModule, context.device, fragShaderFileLength,fragShaderFileContents);
     free(fragShaderFileContents);
   }
 
@@ -1797,43 +1995,30 @@ VkShaderModule fragShaderModule;
   {
     uint32_t *vertShaderFileContents;
     uint32_t vertShaderFileLength;
-    readShaderFile("/home/petermiller/Desktop/vulkan-triangle-v1-master/assets/shaders/shader.vert.spv", &vertShaderFileLength,
+readShaderFile("/home/petermiller/Desktop/vulkan-triangle-v1-master/assets/shaders/shader.vert.spv", &vertShaderFileLength,
                    &vertShaderFileContents);
-    new_ShaderModule(&vertShaderModule, context.device, vertShaderFileLength,
-                     vertShaderFileContents);
+    new_ShaderModule(&vertShaderModule, context.device, vertShaderFileLength,vertShaderFileContents);
     free(vertShaderFileContents);
   }
 
   /* Create graphics pipeline */
-  //VkRenderPass renderPass;
   new_VertexDisplayRenderPass(&context.renderPass, context.device, context.surfaceFormat.format);
 
- // VkPipelineLayout graphicsPipelineLayout;
   new_VertexDisplayPipelineLayout(&context.graphicsPipelineLayout, context.device);
 
- // VkPipeline graphicsPipeline;
-  new_VertexDisplayPipeline(&context.graphicsPipeline, context.device, vertShaderModule,
-                            fragShaderModule, context.swapchainExtent, context.renderPass,
-                            context.graphicsPipelineLayout);
+  new_VertexDisplayPipeline(&context.graphicsPipeline, context.device, vertShaderModule,fragShaderModule, 
+  context.swapchainExtent, context.renderPass,context.graphicsPipelineLayout);
 
-  VkFramebuffer *pSwapchainFramebuffers =
-     (VkFramebuffer *)malloc(swapchainImageCount * sizeof(VkFramebuffer));
-  new_SwapchainFramebuffers(pSwapchainFramebuffers, context.device, context.renderPass,
-                            context.swapchainExtent, swapchainImageCount,
-                            depthImageView, pSwapchainImageViews);
+VkFramebuffer *pSwapchainFramebuffers = (VkFramebuffer *)malloc(swapchainImageCount * sizeof(VkFramebuffer));
+new_SwapchainFramebuffers(pSwapchainFramebuffers, context.device, context.renderPass, context.swapchainExtent, 
+swapchainImageCount, depthImageView, pSwapchainImageViews);
 
-  //VkBuffer vertexBuffer;
-  //VkDeviceMemory vertexBufferMemory;
-  new_VertexBuffer(&context.vertexBuffer, &context.vertexBufferMemory, vertexData, vertexCount,
-                   context.device, context.physicalDevice, context.commandPool, context.graphicsQueue);
+new_VertexBuffer(&context.vertexBuffer, &context.vertexBufferMemory, vertexData, vertexCount,context.device, 
+context.physicalDevice, context.commandPool, context.graphicsQueue);
 
-  //VkCommandBuffer pVertexDisplayCommandBuffers[MAX_FRAMES_IN_FLIGHT];
   new_CommandBuffers(context.pVertexDisplayCommandBuffers, MAX_FRAMES_IN_FLIGHT, context.commandPool, context.device);
-//VkSemaphore pImageAvailableSemaphores[MAX_FRAMES_IN_FLIGHT];
   new_Semaphores(context.pImageAvailableSemaphores, MAX_FRAMES_IN_FLIGHT, context.device);
- // VkSemaphore pRenderFinishedSemaphores[MAX_FRAMES_IN_FLIGHT];
   new_Semaphores(context.pRenderFinishedSemaphores, MAX_FRAMES_IN_FLIGHT, context.device);
- // VkFence pInFlightFences[MAX_FRAMES_IN_FLIGHT];
   new_Fences(context.pInFlightFences, MAX_FRAMES_IN_FLIGHT, context.device,
              true); // fences start off signaled
 
@@ -1929,29 +2114,13 @@ VkShaderModule fragShaderModule;
     getMvpCamera(mvp, &camera);
 
     // record buffer
-    recordVertexDisplayCommandBuffer(                //
-        context.pVertexDisplayCommandBuffers[currentFrame],  //
-        pSwapchainFramebuffers[imageIndex],          //
-        context.vertexBuffer,                                //
-        vertexCount,                                 //
-        context.renderPass,                                  //
-        context.graphicsPipelineLayout,                      //
-        context.graphicsPipeline,                            //
-        context.swapchainExtent,                             //
-        mvp,                                         //
-        (VkClearColorValue){.float32 = {0, 0, 0, 0}} //
-    );
+recordVertexDisplayCommandBuffer( context.pVertexDisplayCommandBuffers[currentFrame],pSwapchainFramebuffers[imageIndex],          
+context.vertexBuffer, vertexCount, context.renderPass, context.graphicsPipelineLayout, context.graphicsPipeline,                            //
+context.swapchainExtent, mvp, (VkClearColorValue){.float32 = {0, 0, 0, 0}});
 
-    drawFrame(                                      //
-        context.pVertexDisplayCommandBuffers[currentFrame], //
-        context.swapchain,                                  //
-        imageIndex,                                 //
-        context.pImageAvailableSemaphores[currentFrame],    //
-        context.pRenderFinishedSemaphores[currentFrame],    //
-        context.pInFlightFences[currentFrame],              //
-        context.graphicsQueue,                              //
-        presentQueue                                //
-    );
+drawFrame(context.pVertexDisplayCommandBuffers[currentFrame], context.swapchain, imageIndex,                                 //
+context.pImageAvailableSemaphores[currentFrame], context.pRenderFinishedSemaphores[currentFrame], 
+context.pInFlightFences[currentFrame], context.graphicsQueue, presentQueue);
 
     // increment frame
     currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
@@ -1992,5 +2161,5 @@ VkShaderModule fragShaderModule;
 */
   glfwTerminate();
   return (EXIT_SUCCESS);
-printf("hello");
+
 };
